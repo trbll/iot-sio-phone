@@ -67,3 +67,66 @@ main {
   overflow: hidden;
   background: #0b1020;
 }
+
+body.viewer-page {
+  background: #0b1020;
+  color: #f8fbff;
+  overflow: hidden;
+}
+
+body.viewer-page main {
+  max-width: none;
+  margin: 0;
+  padding: 0;
+  width: 100vw;
+  height: 100vh;
+}
+
+#viewer-app {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+body.viewer-page #viewer-canvas-wrap {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  border-radius: 0;
+}
+
+#viewer-overlay {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  z-index: 5;
+  width: min(420px, calc(100vw - 32px));
+  padding: 16px;
+  border-radius: 12px;
+  background: rgba(8, 15, 30, 0.68);
+  backdrop-filter: blur(6px);
+}
+
+body.viewer-page .muted {
+  color: #c5d6f0;
+}
+
+body.viewer-page .actions {
+  margin-top: 12px;
+}
+
+body.viewer-page .stats {
+  margin-top: 12px;
+  background: rgba(2, 6, 23, 0.84);
+  color: #e5f0ff;
+}
+
+@media (orientation: portrait) {
+  #viewer-overlay {
+    width: calc(100vw - 24px);
+    top: 12px;
+    left: 12px;
+  }
+}

@@ -6,20 +6,21 @@
     <title>Viewer</title>
     <link rel="stylesheet" href="/styles.css" />
   </head>
-  <body>
+  <body class="viewer-page">
     <main>
-      <section class="card" style="margin-bottom: 16px;">
-        <h1>Viewer</h1>
-        <p class="muted">
-          Listening for IMU updates and applying rotation to the hawk model.
-        </p>
-        <div class="actions">
-          <a class="button secondary" href="/">Back</a>
-        </div>
-        <div id="status" class="stats">status: waiting for data</div>
-      </section>
-
-      <div id="viewer-canvas-wrap"></div>
+      <div id="viewer-app">
+        <div id="viewer-canvas-wrap"></div>
+        <section id="viewer-overlay">
+          <h1>Viewer</h1>
+          <p class="muted">
+            Listening for IMU updates and applying rotation to the Hawkeye model.
+          </p>
+          <div class="actions">
+            <a class="button secondary" href="/">Back</a>
+          </div>
+          <div id="status" class="stats">status: waiting for data</div>
+        </section>
+      </div>
     </main>
 
     <script src="/socket.io/socket.io.js"></script>
