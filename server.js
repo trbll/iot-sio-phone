@@ -8,6 +8,10 @@ const server = http.createServer(app);
 const io = new Server(server);
 const PORT = process.env.PORT || 3000;
 
+app.get("/healthz", (_req, res) => {
+  res.status(200).send("ok");
+});
+
 app.use(express.static(path.join(__dirname, "public")));
 
 io.on("connection", (socket) => {
@@ -27,7 +31,7 @@ io.on("connection", (socket) => {
 });
 
 server.listen(PORT, () => {
-  console.log(`Server listening on http://localhost:${PORT}`);
+  console.log(`Server listening on port ${PORT}`);
 });
 
 function isValidRotation(payload) {
