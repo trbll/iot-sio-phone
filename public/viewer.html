@@ -13,7 +13,7 @@
         <section id="viewer-overlay">
           <h1>Viewer</h1>
           <p class="muted">
-            Listening for IMU updates and applying rotation to the Hawkeye model.
+            Listening for IMU updates and applying rotation to the hawk model.
           </p>
           <div class="actions">
             <a class="button secondary" href="/">Back</a>
@@ -34,12 +34,15 @@
     </script>
     <script type="module">
       import * as THREE from "three";
+      import { OrbitControls } from "three/addons/controls/OrbitControls.js";
       import { STLLoader } from "three/addons/loaders/STLLoader.js";
 
+      // This viewer socket receives relayed IMU data from the server.
       const socket = io();
       const statusEl = document.getElementById("status");
       const wrap = document.getElementById("viewer-canvas-wrap");
 
+      // Basic Three.js scene setup.
       const scene = new THREE.Scene();
       scene.background = new THREE.Color(0x0b1020);
 
@@ -56,13 +59,22 @@
       renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
       wrap.appendChild(renderer.domElement);
 
+      // OrbitControls lets desktop viewers inspect the model with mouse/trackpad.
+      const controls = new OrbitControls(camera, renderer.domElement);
+      controls.enableDamping = true;
+      controls.dampingFactor = 0.08;
+      controls.target.set(0, 0, 0);
+      controls.update();
+
       const stlLoader = new STLLoader();
       let model = null;
+      // Cache the newest IMU sample so early messages are applied after model load.
       let latestRotation = { x: 0, y: 0, z: 0 };
 
       stlLoader.load(
         "/hawk.stl",
         (geometry) => {
+          // Normalize the STL into a predictable size and origin.
           geometry.computeBoundingBox();
           geometry.computeVertexNormals();
           geometry.center();
@@ -73,6 +85,7 @@
           const targetSize = 2;
           const scale = targetSize / maxDimension;
 
+          // Requested look: yellow wireframe.
           model = new THREE.Mesh(
             geometry,
             new THREE.MeshStandardMaterial({
@@ -83,6 +96,7 @@
             })
           );
           model.scale.setScalar(scale);
+          // Apply latest known IMU state at the moment the model appears.
           model.rotation.set(latestRotation.x, latestRotation.y, latestRotation.z);
           scene.add(model);
           setStatus("status: model loaded, waiting for data");
@@ -94,6 +108,7 @@
         }
       );
 
+      // Simple lighting rig so wireframe lines are visible against dark background.
       const ambient = new THREE.AmbientLight(0xffffff, 0.8);
       scene.add(ambient);
 
@@ -109,6 +124,7 @@
       floor.position.y = -1.2;
       scene.add(floor);
 
+      // Incoming payloads are already radians {x,y,z} from the controller.
       socket.on("imu:update", (payload) => {
         if (!payload || !isFinite(payload.x) || !isFinite(payload.y) || !isFinite(payload.z)) {
           return;
@@ -146,10 +162,13 @@
 
       function animate() {
         requestAnimationFrame(animate);
+        // Needed each frame when damping is enabled.
+        controls.update();
         renderer.render(scene, camera);
       }
 
       function onResize() {
+        // Keep perspective and render buffer aligned with actual canvas size.
         const width = wrap.clientWidth;
         const height = wrap.clientHeight;
         camera.aspect = width / height;

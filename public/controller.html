@@ -23,10 +23,12 @@
 
     <script src="/socket.io/socket.io.js"></script>
     <script>
+      // Create a client socket connected to the same origin as this page.
       const socket = io();
       const startButton = document.getElementById("start-btn");
       const statusEl = document.getElementById("status");
 
+      // Latest rotation sample cached from deviceorientation events.
       let latest = { x: 0, y: 0, z: 0 };
       let timerId = null;
       let eventCount = 0;
@@ -34,19 +36,22 @@
       startButton.addEventListener("click", startStreaming);
 
       async function startStreaming() {
+        // Prevent duplicate timers/listeners if button is clicked repeatedly.
         if (timerId) {
           return;
         }
 
+        // iOS requires an explicit user gesture + permission request.
         const permissionOk = await requestMotionPermission();
         if (!permissionOk) {
           setStatus("status: permission denied or unavailable");
           return;
         }
 
+        // Sensor events can arrive faster than we want to publish over network.
         window.addEventListener("deviceorientation", handleOrientation, true);
 
-        // 30 Hz => 33.33ms interval.
+        // Send at a steady 30 Hz so viewer updates feel smooth and predictable.
         timerId = window.setInterval(() => {
           socket.emit("imu:update", latest);
         }, 1000 / 30);
@@ -55,6 +60,7 @@
       }
 
       async function requestMotionPermission() {
+        // iOS Safari exposes requestPermission(); other browsers usually do not.
         if (
           typeof DeviceOrientationEvent !== "undefined" &&
           typeof DeviceOrientationEvent.requestPermission === "function"
@@ -68,15 +74,18 @@
           }
         }
 
+        // Non-iOS path: event availability usually implies permission model is different.
         return "DeviceOrientationEvent" in window;
       }
 
       function handleOrientation(event) {
-        // alpha(z), beta(x), gamma(y) are provided in degrees.
+        // DeviceOrientationEvent reports degrees:
+        // beta -> x tilt, gamma -> y tilt, alpha -> z heading.
         const xDeg = Number.isFinite(event.beta) ? event.beta : 0;
         const yDeg = Number.isFinite(event.gamma) ? event.gamma : 0;
         const zDeg = Number.isFinite(event.alpha) ? event.alpha : 0;
 
+        // Three.js rotations are in radians, so convert before emitting.
         latest = {
           x: toRadians(xDeg),
           y: toRadians(yDeg),
