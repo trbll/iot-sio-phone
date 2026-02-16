@@ -1,0 +1,20 @@
+{
+  "name": "iot-sio-phone",
+  "version": "1.0.0",
+  "description": "Basic Socket.IO phone controller and Three.js viewer",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "keywords": [
+    "socket.io",
+    "threejs",
+    "imu"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.21.2",
+    "socket.io": "^4.8.1"
+  }
+}

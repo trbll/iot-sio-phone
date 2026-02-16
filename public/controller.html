@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Controller</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main>
+      <section class="card">
+        <h1>Controller</h1>
+        <p class="muted">
+          Shares device orientation over Socket.IO at 30 Hz.
+        </p>
+        <div class="actions">
+          <button id="start-btn" class="button">Start Streaming</button>
+          <a class="button secondary" href="/">Back</a>
+        </div>
+        <div id="status" class="stats">status: idle</div>
+      </section>
+    </main>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+      const socket = io();
+      const startButton = document.getElementById("start-btn");
+      const statusEl = document.getElementById("status");
+
+      let latest = { x: 0, y: 0, z: 0 };
+      let timerId = null;
+      let eventCount = 0;
+
+      startButton.addEventListener("click", startStreaming);
+
+      async function startStreaming() {
+        if (timerId) {
+          return;
+        }
+
+        const permissionOk = await requestMotionPermission();
+        if (!permissionOk) {
+          setStatus("status: permission denied or unavailable");
+          return;
+        }
+
+        window.addEventListener("deviceorientation", handleOrientation, true);
+
+        // 30 Hz => 33.33ms interval.
+        timerId = window.setInterval(() => {
+          socket.emit("imu:update", latest);
+        }, 1000 / 30);
+
+        setStatus("status: streaming");
+      }
+
+      async function requestMotionPermission() {
+        if (
+          typeof DeviceOrientationEvent !== "undefined" &&
+          typeof DeviceOrientationEvent.requestPermission === "function"
+        ) {
+          try {
+            const result = await DeviceOrientationEvent.requestPermission();
+            return result === "granted";
+          } catch (error) {
+            console.error(error);
+            return false;
+          }
+        }
+
+        return "DeviceOrientationEvent" in window;
+      }
+
+      function handleOrientation(event) {
+        // alpha(z), beta(x), gamma(y) are provided in degrees.
+        const xDeg = Number.isFinite(event.beta) ? event.beta : 0;
+        const yDeg = Number.isFinite(event.gamma) ? event.gamma : 0;
+        const zDeg = Number.isFinite(event.alpha) ? event.alpha : 0;
+
+        latest = {
+          x: toRadians(xDeg),
+          y: toRadians(yDeg),
+          z: toRadians(zDeg),
+        };
+
+        eventCount += 1;
+        setStatus(
+          [
+            "status: streaming",
+            `events: ${eventCount}`,
+            `x: ${latest.x.toFixed(3)}`,
+            `y: ${latest.y.toFixed(3)}`,
+            `z: ${latest.z.toFixed(3)}`,
+          ].join("\n")
+        );
+      }
+
+      function toRadians(value) {
+        return (value * Math.PI) / 180;
+      }
+
+      function setStatus(text) {
+        statusEl.textContent = text;
+      }
+    </script>
+  </body>
+</html>

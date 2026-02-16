@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Viewer</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main>
+      <section class="card" style="margin-bottom: 16px;">
+        <h1>Viewer</h1>
+        <p class="muted">
+          Listening for IMU updates and applying rotation to the cube.
+        </p>
+        <div class="actions">
+          <a class="button secondary" href="/">Back</a>
+        </div>
+        <div id="status" class="stats">status: waiting for data</div>
+      </section>
+
+      <div id="viewer-canvas-wrap"></div>
+    </main>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script type="module">
+      import * as THREE from "https://unpkg.com/three@0.162.0/build/three.module.js";
+
+      const socket = io();
+      const statusEl = document.getElementById("status");
+      const wrap = document.getElementById("viewer-canvas-wrap");
+
+      const scene = new THREE.Scene();
+      scene.background = new THREE.Color(0x0b1020);
+
+      const camera = new THREE.PerspectiveCamera(
+        60,
+        wrap.clientWidth / wrap.clientHeight,
+        0.1,
+        100
+      );
+      camera.position.set(0, 1, 4);
+
+      const renderer = new THREE.WebGLRenderer({ antialias: true });
+      renderer.setSize(wrap.clientWidth, wrap.clientHeight);
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+      wrap.appendChild(renderer.domElement);
+
+      const cube = new THREE.Mesh(
+        new THREE.BoxGeometry(1, 1, 1),
+        new THREE.MeshStandardMaterial({ color: 0x4ea1ff, roughness: 0.4, metalness: 0.2 })
+      );
+      scene.add(cube);
+
+      const ambient = new THREE.AmbientLight(0xffffff, 0.8);
+      scene.add(ambient);
+
+      const directional = new THREE.DirectionalLight(0xffffff, 1.1);
+      directional.position.set(3, 4, 5);
+      scene.add(directional);
+
+      const floor = new THREE.Mesh(
+        new THREE.PlaneGeometry(12, 12),
+        new THREE.MeshStandardMaterial({ color: 0x1d2939, roughness: 1.0, metalness: 0.0 })
+      );
+      floor.rotation.x = -Math.PI / 2;
+      floor.position.y = -1.2;
+      scene.add(floor);
+
+      socket.on("imu:update", (payload) => {
+        if (!payload || !isFinite(payload.x) || !isFinite(payload.y) || !isFinite(payload.z)) {
+          return;
+        }
+
+        cube.rotation.x = payload.x;
+        cube.rotation.y = payload.y;
+        cube.rotation.z = payload.z;
+
+        setStatus(
+          [
+            "status: receiving data",
+            `x: ${payload.x.toFixed(3)}`,
+            `y: ${payload.y.toFixed(3)}`,
+            `z: ${payload.z.toFixed(3)}`,
+          ].join("\n")
+        );
+      });
+
+      socket.on("connect", () => {
+        setStatus("status: connected, waiting for data");
+      });
+
+      socket.on("disconnect", () => {
+        setStatus("status: disconnected");
+      });
+
+      window.addEventListener("resize", onResize);
+      onResize();
+      animate();
+
+      function animate() {
+        requestAnimationFrame(animate);
+        renderer.render(scene, camera);
+      }
+
+      function onResize() {
+        const width = wrap.clientWidth;
+        const height = wrap.clientHeight;
+        camera.aspect = width / height;
+        camera.updateProjectionMatrix();
+        renderer.setSize(width, height);
+      }
+
+      function setStatus(text) {
+        statusEl.textContent = text;
+      }
+    </script>
+  </body>
+</html>
