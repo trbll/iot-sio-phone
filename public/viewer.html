@@ -11,7 +11,7 @@
       <section class="card" style="margin-bottom: 16px;">
         <h1>Viewer</h1>
         <p class="muted">
-          Listening for IMU updates and applying rotation to the cube.
+          Listening for IMU updates and applying rotation to the hawk model.
         </p>
         <div class="actions">
           <a class="button secondary" href="/">Back</a>
@@ -23,8 +23,17 @@
     </main>
 
     <script src="/socket.io/socket.io.js"></script>
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://unpkg.com/three@0.162.0/build/three.module.js",
+          "three/addons/": "https://unpkg.com/three@0.162.0/examples/jsm/"
+        }
+      }
+    </script>
     <script type="module">
-      import * as THREE from "https://unpkg.com/three@0.162.0/build/three.module.js";
+      import * as THREE from "three";
+      import { STLLoader } from "three/addons/loaders/STLLoader.js";
 
       const socket = io();
       const statusEl = document.getElementById("status");
@@ -46,11 +55,43 @@
       renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
       wrap.appendChild(renderer.domElement);
 
-      const cube = new THREE.Mesh(
-        new THREE.BoxGeometry(1, 1, 1),
-        new THREE.MeshStandardMaterial({ color: 0x4ea1ff, roughness: 0.4, metalness: 0.2 })
+      const stlLoader = new STLLoader();
+      let model = null;
+      let latestRotation = { x: 0, y: 0, z: 0 };
+
+      stlLoader.load(
+        "/hawk.stl",
+        (geometry) => {
+          geometry.computeBoundingBox();
+          geometry.computeVertexNormals();
+          geometry.center();
+
+          const size = new THREE.Vector3();
+          geometry.boundingBox.getSize(size);
+          const maxDimension = Math.max(size.x, size.y, size.z) || 1;
+          const targetSize = 2;
+          const scale = targetSize / maxDimension;
+
+          model = new THREE.Mesh(
+            geometry,
+            new THREE.MeshStandardMaterial({
+              color: 0xffcd00,
+              wireframe: true,
+              roughness: 0.4,
+              metalness: 0.1
+            })
+          );
+          model.scale.setScalar(scale);
+          model.rotation.set(latestRotation.x, latestRotation.y, latestRotation.z);
+          scene.add(model);
+          setStatus("status: model loaded, waiting for data");
+        },
+        undefined,
+        (error) => {
+          console.error(error);
+          setStatus("status: failed to load /hawk.stl");
+        }
       );
-      scene.add(cube);
 
       const ambient = new THREE.AmbientLight(0xffffff, 0.8);
       scene.add(ambient);
@@ -72,9 +113,13 @@
           return;
         }
 
-        cube.rotation.x = payload.x;
-        cube.rotation.y = payload.y;
-        cube.rotation.z = payload.z;
+        latestRotation = payload;
+
+        if (model) {
+          model.rotation.x = payload.x;
+          model.rotation.y = payload.y;
+          model.rotation.z = payload.z;
+        }
 
         setStatus(
           [
